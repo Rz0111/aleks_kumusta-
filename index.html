@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ALEKS Survey: Grouped Data</title>
+<style>
+:root{--bg:#fff;--card:#eef4f0;--ink:#1b422d;--mut:#5a6b61;--g:#016737;--or:#ff9900;--line:#cfdcd3;--in:#fff;--ok:#d9f0e1;--bad:#fde3d4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0f1f17;--card:#1a2f23;--ink:#e8f1ea;--mut:#9db3a5;--g:#4cc27f;--line:#2f4a3a;--in:#12251b;--ok:#1e4a30;--bad:#5a3317}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:.3em 0}h1{font-size:26px}h2{font-size:21px}h3{font-size:17px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:520px}
+th{background:var(--g);color:#fff;padding:7px;font-size:14px;text-align:center}td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;font-size:15px}
+tr.tot td{background:#e9d08a;color:#1b422d;font-weight:700}
+.btn{background:var(--or);color:#1b422d;border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer}
+.btn.alt{background:transparent;border:1px solid var(--g);color:var(--g)}.btn:disabled{opacity:.45}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--in);border:1px solid var(--line);border-radius:8px;padding:8px}textarea{width:100%;min-height:90px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.mut{color:var(--mut);font-size:14px}
+.opts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0 16px}
+.opt{border:2px solid var(--line);background:var(--in);color:var(--ink);border-radius:10px;padding:10px 2px;font:inherit;cursor:pointer;line-height:1.2}
+.opt b{display:block;font-size:20px}.opt span{font-size:11px;color:var(--mut)}
+.opt.on{background:var(--g);border-color:var(--g);color:#fff}.opt.on span{color:#fff}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.sbox{background:var(--in);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}.sbox b{display:block;font-size:26px;color:var(--g)}
+.work{background:var(--in);border-left:4px solid var(--or);padding:8px 12px;margin:6px 0;border-radius:6px;font-size:15px;overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;background:var(--ok)}.pill.bad{background:var(--bad)}
+</style></head><body><main id="app"></main>
+<script>
+const Q=['I am on track with my weekly ALEKS module goals.','I enjoy answering ALEKS modules.','I find ALEKS modules challenging to answer.','I use strategies that help me make the most of ALEKS and improve my progress.'];
+const SC=['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'],QS=['On track','Enjoy ALEKS','Find it challenging','Use strategies'];
+const BASE='https://ntfy.sh/',app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(x,d=2)=>(Math.round(x*10**d)/10**d).toFixed(d).replace(/\.?0+$/,'')||'0';
+const hash=()=>location.hash.slice(1),code=()=>{const m=hash().match(/^(?:r|teacher)=([A-Za-z0-9]+)/);return m?m[1].toUpperCase():''};
+const topic=()=>BASE+'aleks-survey-'+code().toLowerCase();
+let ans=[0,0,0,0],status='',T={resp:new Map(),w:3,pop:false,conn:'connecting…',es:null};
+function landing(){app.innerHTML=`<h1>ALEKS Survey</h1><p class=mut>Rate each statement, then see what the class data says.</p>
+<div class=card><h2>I’m a student</h2><p>Ask your teacher for the survey link or QR code. Or type the class code:</p><div class=row><input id=cd placeholder="Class code" style="text-transform:uppercase;width:150px"><button class=btn id=go>Join</button></div></div>
+<div class=card><h2>I’m the teacher</h2><button class=btn id=mk>Start a new survey</button></div>`;
+document.getElementById('go').onclick=()=>{const v=document.getElementById('cd').value.trim();if(v)location.hash='r='+v};
+document.getElementById('mk').onclick=()=>{location.hash='teacher='+Math.random().toString(36).slice(2,7).toUpperCase()}}
+function student(){const c=code(),done=localStorage.getItem('aleks-done-'+c);
+if(done){app.innerHTML=`<h1>Thank you! ✓</h1><p>Your response was sent. Wait for your teacher’s next instruction.</p>`;return}
+app.innerHTML=`<h1>ALEKS Survey</h1><p class=mut>No names. Tap one rating for each statement. Class: ${esc(c)}</p>`+Q.map((q,i)=>`<div class=card><b>${i+1}. ${esc(q)}</b><div class=opts>${SC.map((s,k)=>`<button class="opt ${ans[i]==k+1?'on':''}" data-i="${i}" data-v="${k+1}"><b>${k+1}</b><span>${s}</span></button>`).join('')}</div></div>`).join('')+`<button class=btn id=sub ${ans.every(Boolean)?'':'disabled'}>Submit</button><p class=mut>${esc(status)}</p>`;
+document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{ans[+b.dataset.i]=+b.dataset.v;student()});
+document.getElementById('sub').onclick=async()=>{status='Sending…';student();try{const r=await fetch(topic(),{method:'POST',body:JSON.stringify({id:Math.random().toString(36).slice(2,10),q:ans})});if(!r.ok)throw 0;try{localStorage.setItem('aleks-done-'+c,'1')}catch(e){}student()}catch(e){status='Couldn’t send. Check your connection and tap Submit again.';student()}}}
+function addScores(q){T.resp.set('m'+Math.random().toString(36).slice(2,8),q)}
+function stats(v,pop){const n=v.length;if(n<2)return null;const f=[1,2,3,4,5].map(k=>v.filter(x=>x==k).length),sfx=v.reduce((a,b)=>a+b,0),mean=sfx/n,s=[...v].sort((a,b)=>a-b);
+const med=n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2,mx=Math.max(...f),modes=[1,2,3,4,5].filter(k=>f[k-1]==mx),d=f.map((c,i)=>c*(i+1-mean)**2),ss=d.reduce((a,b)=>a+b,0),dn=pop?n:n-1,vr=ss/dn;
+let cf=0;const cfs=f.map(c=>cf+=c);return{n,f,sfx,mean,s,med,mx,modes,d,ss,dn,vr,sd:Math.sqrt(vr),cfs}}
+const vlab=m=>SC[m<=1.8?0:m<=2.6?1:m<=3.4?2:m<=4.2?3:4];
+const sdl=s=>s<.8?'the students mostly agree with one another':s<=1.2?'there is some variation in opinions':'opinions are widely spread out (the class is divided)';
+function teacher(){const c=code(),url=location.origin+location.pathname+'#r='+c,all=[...T.resp.values()],S=Q.map((_,i)=>stats(all.map(r=>r[i]),T.pop));
+let h=`<h1>ALEKS Survey: Results</h1>
+<div class=card><div class=row><div><b>Class code: ${esc(c)}</b><br><span class=mut>Students open: ${esc(url)}</span></div><img alt="QR code" width=130 height=130 src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}"></div>
+<p><span class="pill ${T.conn=='live'?'':'bad'}">Live connection: ${esc(T.conn)}</span> <b>${all.length} responses</b> <button class="btn alt" id=nw style="padding:6px 12px">Start a new section</button></p>
+<details><summary>No connection? Add data by hand</summary><p class=mut>One student per line: four ratings from 1 to 5, in order of the statements (like <code>4 3 5 2</code>).</p><textarea id=man placeholder="4 3 5 2&#10;3 3 4 4"></textarea><div class=row><button class="btn alt" id=addm>Add</button><button class="btn alt" id=demo>Fill with sample data</button><button class="btn alt" id=clr>Clear all</button></div></details></div>`;
+if(!S[0]){h+=`<div class=card>Waiting for at least 2 responses…</div>`}else{
+h+=`<div class=card><div class=row><label>Variance and standard deviation: <select id=vt><option value=s ${T.pop?'':'selected'}>Sample (n − 1)</option><option value=p ${T.pop?'selected':''}>Population (n)</option></select></label></div></div>
+<div class="card wrap"><h2>Class consensus at a glance</h2><table style="min-width:640px"><tr><th>Statement</th><th>Mean</th><th>Meaning of the mean</th><th>Median</th><th>Mode</th><th>${T.pop?'σ':'s'}</th><th>${T.pop?'σ²':'s²'}</th></tr>${S.map((s,i)=>`<tr><td style="text-align:left"><b>${i+1}.</b> ${esc(QS[i])}</td><td><b>${fmt(s.mean)}</b></td><td>${vlab(s.mean)}</td><td>${fmt(s.med)}</td><td>${s.modes.join(', ')}</td><td>${fmt(s.sd)}</td><td>${fmt(s.vr)}</td></tr>`).join('')}</table>
+<p class=mut>Scale: 1 Strongly disagree · 2 Disagree · 3 Neutral · 4 Agree · 5 Strongly agree</p></div>`;
+S.forEach((s,i)=>{h+=`<details class=card ${i==0?'open':''}><summary><b>Statement ${i+1}:</b> ${esc(Q[i])}</summary>
+<div class=wrap><table><tr><th>Rating (x)</th><th>Meaning</th><th>f</th><th>f·x</th><th>cf</th><th>f(x − x̄)²</th></tr>${s.f.map((f,k)=>`<tr><td>${k+1}</td><td style="text-align:left">${SC[k]}</td><td>${f}</td><td>${f*(k+1)}</td><td>${s.cfs[k]}</td><td>${fmt(s.d[k])}</td></tr>`).join('')}<tr class=tot><td>Total</td><td></td><td>${s.n}</td><td>${s.sfx}</td><td></td><td>${fmt(s.ss)}</td></tr></table></div>
+<div class=stat style="margin:10px 0"><div class=sbox>Mean<b>${fmt(s.mean)}</b></div><div class=sbox>Median<b>${fmt(s.med)}</b></div><div class=sbox>Mode<b>${s.modes.join(', ')}</b></div><div class=sbox>${T.pop?'σ':'s'}<b>${fmt(s.sd)}</b></div><div class=sbox>${T.pop?'σ²':'s²'}<b>${fmt(s.vr)}</b></div></div>
+<h3>Mean</h3><div class=work>x̄ = Σfx ÷ n = ${s.sfx} ÷ ${s.n} = <b>${fmt(s.mean)}</b></div><p>On average, students rated this ${fmt(s.mean,2)}, which is closest to “${vlab(s.mean)}.”</p>
+<h3>Median</h3><div class=work>${s.n%2?`n = ${s.n} (odd), so the median is the ${(s.n+1)/2}th value in the ordered data = <b>${fmt(s.med)}</b>`:`n = ${s.n} (even), so the median is the average of the ${s.n/2}th and ${s.n/2+1}th values = (${s.s[s.n/2-1]} + ${s.s[s.n/2]}) ÷ 2 = <b>${fmt(s.med)}</b>`}</div><p>Half of the students rated this ${fmt(s.med)} or lower, and half rated it ${fmt(s.med)} or higher (“${vlab(s.med)}”).</p>
+<h3>Mode</h3><div class=work>Highest frequency: f = ${s.mx} → Mode = <b>${s.modes.join(' and ')}</b></div><p>${s.modes.length>1?`This is multimodal: ratings ${s.modes.join(' and ')} tie for the most common (each chosen by ${s.mx} students).`:`The most common rating was ${s.modes[0]} (“${SC[s.modes[0]-1]}”), chosen by ${s.mx} of ${s.n} students (${fmt(s.mx/s.n*100,0)}%).`}</p>
+<h3>Variance and standard deviation</h3><div class=work>${T.pop?'σ²':'s²'} = Σf(x − x̄)² ÷ ${T.pop?'n':'(n − 1)'} = ${fmt(s.ss)} ÷ ${s.dn} = <b>${fmt(s.vr)}</b><br>${T.pop?'σ':'s'} = √${fmt(s.vr)} = <b>${fmt(s.sd)}</b></div><p>A typical rating is about ${fmt(s.sd)} points away from the mean, so ${sdl(s.sd)}. The variance (${fmt(s.vr)}) is the standard deviation squared.</p></details>`});
+const hi=S.map((s,i)=>[s.mean,i]).sort((a,b)=>b[0]-a[0]),lo=S.map((s,i)=>[s.sd,i]).sort((a,b)=>a[0]-b[0]);
+h+=`<div class=card><h3>Reading across the statements</h3><p>Highest mean: Statement ${hi[0][1]+1} (${fmt(hi[0][0])}). Lowest mean: Statement ${hi[3][1]+1} (${fmt(hi[3][0])}).<br>Most agreement among students (smallest ${T.pop?'σ':'s'}): Statement ${lo[0][1]+1}. Most spread out: Statement ${lo[3][1]+1}.</p><p class=mut>Use these to start the discussion: what do the means, and how much the class agrees, say about this section’s ALEKS habits?</p></div>`}
+app.innerHTML=h;
+const $=id=>document.getElementById(id),on=(id,f)=>{if($(id))$(id).onclick=f};
+on('addm',()=>{$('man').value.split(/\r?\n/).forEach(l=>{const v=(l.match(/\d+/g)||[]).map(Number);if(v.length==4&&v.every(x=>x>=1&&x<=5))addScores(v)});teacher()});
+on('demo',()=>{for(let i=0;i<30;i++)addScores(Q.map(()=>Math.min(5,Math.max(1,Math.round(3.3+(Math.random()+Math.random()-1)*2)))));teacher()});
+on('clr',()=>{T.resp.clear();teacher()});
+on('nw',()=>{if(confirm('Start a new section? This opens a fresh code and a blank results page. The current results will be cleared from this screen.'))location.hash='teacher='+Math.random().toString(36).slice(2,7).toUpperCase()});
+if($('vt'))$('vt').onchange=e=>{T.pop=e.target.value=='p';teacher()}}
+function connect(){try{T.es=new EventSource(topic()+'/sse?since=all');T.es.onopen=()=>{T.conn='live';teacher()};T.es.onerror=()=>{T.conn='offline (use the manual box)';teacher()};
+T.es.onmessage=e=>{try{const m=JSON.parse(JSON.parse(e.data).message);if(m&&typeof m.id=='string'&&Array.isArray(m.q)&&m.q.length==4&&m.q.every(x=>x>=1&&x<=5)&&!T.resp.has(m.id)){T.resp.set(m.id,m.q.map(Number));teacher()}}catch(x){}}}catch(e){T.conn='offline (use the manual box)'}}
+function route(){if(T.es){T.es.close();T.es=null}const h=hash();if(/^r=/.test(h))student();else if(/^teacher=/.test(h)){T.resp.clear();teacher();connect()}else landing()}
+addEventListener('hashchange',route);route();
+</script></body></html>
